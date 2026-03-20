@@ -99,6 +99,15 @@ const BOILERPLATE_TRAILING = [
   /[\s\-–|]+details\.?$/i,
 ];
 
+// Strings that are UI labels / badges, not actual listing titles.
+// If extracted title matches one of these exactly, fall back to URL slug.
+const JUNK_TITLES = new Set([
+  'in de kijker', 'featured', 'nieuw', 'new', 'sold', 'verkocht',
+  'onder bod', 'onder optie', 'read more', 'lees meer', 'meer info',
+  'bekijk', 'details', 'contact', 'portfolio', 'aanbod', 'overzicht',
+  'home', 'kopen', 'te koop', 'over te nemen', 'bedrijven te koop',
+]);
+
 function stripBoilerplate(text) {
   if (!text) return text;
   let result = text;
@@ -108,22 +117,46 @@ function stripBoilerplate(text) {
   return result.replace(/\s+/g, ' ').trim();
 }
 
+// Convert a URL slug to a readable title: "my-business-name" → "My Business Name"
+function slugToTitle(url) {
+  try {
+    const slug = new URL(url).pathname.split('/').filter(Boolean).pop() || '';
+    return slug
+      .replace(/[-_]/g, ' ')
+      .replace(/\b\w/g, (c) => c.toUpperCase())
+      .trim();
+  } catch {
+    return '';
+  }
+}
+
 function normalizeListing(raw, siteConfig) {
   const { startUrl, domain, idStrategy = 'url', filters = {} } = siteConfig;
   const minTitleLength = filters.minTitleLength ?? 5;
 
-  // Title
-  const title = stripBoilerplate((raw.title || '').replace(/\s+/g, ' ').trim());
-  if (!title || title.length < minTitleLength) return null;
-
-  // URL
+  // URL — validate first so we can use it for slug fallback
   const canonUrl = canonicalizeUrl(raw.url, startUrl);
   if (!canonUrl) return null;
 
+  // Filter out the category/start page leaking in as a listing
+  const canonStart = canonicalizeUrl(startUrl, startUrl);
+  if (canonUrl === canonStart) return null;
+
+  // Title — check for junk labels and fall back to URL slug
+  let title = stripBoilerplate((raw.title || '').replace(/\s+/g, ' ').trim());
+  if (!title || JUNK_TITLES.has(title.toLowerCase())) {
+    title = slugToTitle(canonUrl);
+  }
+  if (!title || title.length < minTitleLength) return null;
+
   // Description — store full (up to 1000 chars); truncation for email only
-  const description = raw.description
+  let description = raw.description
     ? stripBoilerplate(raw.description.replace(/\s+/g, ' ').trim()).slice(0, 1000) || null
     : null;
+  // Don't store description if it's identical to the title (adds no value)
+  if (description && description.toLowerCase() === title.toLowerCase()) {
+    description = null;
+  }
 
   // ID
   let id;
@@ -394,7 +427,8 @@ async function scrape(siteConfig, browser) {
       const pageRaw = extractListings($, siteConfig, currentUrl);
 
       // Cheerio→Puppeteer automatic fallback on page 1 zero result
-      if (pageRaw.length === 0 && pagesVisited === 0 && !needsJS && !usedFallback) {
+      // Skipped if noPuppeteerFallback is set (e.g. HTTP sites that Chromium blocks)
+      if (pageRaw.length === 0 && pagesVisited === 0 && !needsJS && !usedFallback && !siteConfig.noPuppeteerFallback) {
         logger.info('cheerio_fallback_puppeteer', MODULE, { site: name });
         usedFallback = true;
         visitedUrls.delete(currentUrl); // allow retry of same URL

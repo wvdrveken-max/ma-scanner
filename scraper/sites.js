@@ -239,13 +239,18 @@ module.exports = [
     pagination: { type: 'next', selector: 'a.next-page, a[rel="next"]' },
   }),
 
-  // 15. DaVinci CF — DISABLED: URL returns 404
+  // 15. DaVinci CF — Vue.js / Craft CMS rendered; correct URL is /nl/portfolio
   site({
-    name:    'DaVinci CF',
-    domain:  'davinci-cf.be',
-    startUrl: 'https://www.davinci-cf.be/nl/portefeuille',
-    enabled: false, // 404 — page no longer exists
-    selectors: { item: '.case', title: 'h2', description: 'p', link: 'a' },
+    name:     'DaVinci CF',
+    domain:   'davinci-cf.be',
+    startUrl: 'https://www.davinci-cf.be/nl/portfolio',
+    needsJS:  true,
+    selectors: {
+      item:        '.project, article, .card, [class*="project"]',
+      title:       'h2, h3, h4, .title, [class*="title"]',
+      description: 'p, .description, [class*="description"]',
+      link:        'a',
+    },
   }),
 
   // 16. Coforce — table-based layout, link is in the description column
@@ -288,13 +293,19 @@ module.exports = [
     },
   }),
 
-  // 19. A-Square — DISABLED: self-signed SSL cert + ERR_BLOCKED_BY_CLIENT
+  // 19. A-Square — WordPress + HivePress marketplace plugin (server-rendered)
+  // HTTP only (no HTTPS cert); Chromium blocks HTTP so Puppeteer fallback is disabled
   site({
-    name:    'A-Square',
-    domain:  'a-square.be',
-    startUrl: 'http://a-square.be/',
-    enabled: false, // self-signed cert + blocked in headless Chrome
-    selectors: { item: 'article', title: 'h2', description: 'p', link: 'a' },
+    name:               'A-Square',
+    domain:             'a-square.be',
+    startUrl:           'http://a-square.be/',
+    noPuppeteerFallback: true, // Chromium blocks plain HTTP navigation
+    selectors: {
+      item:        'article.hp-listing',
+      title:       '.hp-listing__title, h3',
+      description: '.hp-listing__content, p',
+      link:        '.hp-listing__link, a',
+    },
   }),
 
   // 20. Advisory Team — JS-rendered, static HTML has no listings
@@ -327,16 +338,18 @@ module.exports = [
   }),
 
   // 22. Varafin — SSL cert issue on their server; bypass verification
+  // needsJS: true because Cheerio finds rows but links resolve to page URL (no detail links)
   site({
     name:            'Varafin',
     domain:          'varafin.be',
     startUrl:        'https://www.varafin.be/opdrachten',
     ignoreSSLErrors: true,
+    needsJS:         true,
     selectors: {
-      item:        '.opdracht, article, .listing, .case, tr',
-      title:       'h2, h3, .title, td a',
-      description: 'p, .description, td',
-      link:        'a',
+      item:        '.opdracht, article, .listing, .case, .card, tr:has(td a)',
+      title:       'h2, h3, .title, td:nth-child(2), td:first-child',
+      description: 'p, .description, td:nth-child(3)',
+      link:        'a[href]:not([href="#"]):not([href=""])',
     },
   }),
 
