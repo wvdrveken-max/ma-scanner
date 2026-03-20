@@ -77,6 +77,7 @@ const CSS = `
   .btn { display: inline-block; background: #2563eb; color: #fff !important; text-decoration: none;
          padding: 4px 10px; border-radius: 3px; font-size: 11px; white-space: nowrap; }
   .footer { background: #f5f5f5; padding: 14px 28px; font-size: 11px; color: #888; }
+  .footer a { color: #2563eb; }
   .footer .errors { color: #c0392b; margin-top: 6px; }
 `;
 
@@ -149,7 +150,8 @@ function buildDigestHtml(listings, runStats) {
     <tbody>${tableRows}</tbody>
   </table>
   <div class="footer">
-    Run completed: ${ranAt.toISOString()} UTC
+    <a href="https://wvdrveken-max.github.io/ma-scanner/">View all opportunities</a>
+    &nbsp;·&nbsp; Run completed: ${ranAt.toISOString()} UTC
     ${errorsHtml}
   </div>
 </div>
@@ -161,6 +163,7 @@ function buildDigestHtml(listings, runStats) {
 Sites scanned: ${totalSites} | Succeeded: ${sitesSucceeded} | Failed: ${sitesFailed}
 New opportunities: ${listings.length}
 ${plainLines}
+View all opportunities: https://wvdrveken-max.github.io/ma-scanner/
 Run: ${ranAt.toISOString()} UTC${errorsPlain}
 `;
 

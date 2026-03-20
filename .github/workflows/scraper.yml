@@ -14,6 +14,15 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
+    permissions:
+      contents: read
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -49,6 +58,23 @@ jobs:
           SMTP_PASS:    ${{ secrets.SMTP_PASS }}
           SMTP_FROM:    ${{ secrets.SMTP_FROM }}
           NOTIFY_TO:    ${{ secrets.NOTIFY_TO }}
+
+      - name: Generate overview page
+        run: node scripts/generate-overview.js
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
+      - name: Setup Pages
+        uses: actions/configure-pages@v4
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: docs/
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4
 
       - name: Upload logs on failure
         if: failure()
