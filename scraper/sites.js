@@ -314,20 +314,20 @@ module.exports = [
     },
   }),
 
-  // 21. Dealmakers Opportunities — React SPA (Betty Blocks + Material UI)
-  // Puppeteer renders the full app; selectors target MUI card components
+  // 21. Dealmakers Opportunities — React SPA (Betty Blocks + MUI)
+  // Listings visible without login; detail pages require auth (link still captured)
+  // data-component attributes are stable Betty Blocks identifiers
   site({
     name:     'Dealmakers',
     domain:   'opportunities.dealmakers.be',
     startUrl: 'https://opportunities.dealmakers.be/nl/filter',
     needsJS:  true,
     selectors: {
-      item:        '.MuiCard-root, .MuiPaper-root, [class*="Card-root"], [class*="card-root"]',
-      title:       'h2, h3, h4, h5, [class*="title"], [class*="Title"]',
-      description: 'p, [class*="description"], [class*="Description"], [class*="subtitle"]',
-      link:        'a',
+      item:        '[data-component="Box"]:has(> h5)',
+      title:       'h5',
+      description: 'p',
+      link:        'a[data-component="Button"]',
     },
-    pagination: { type: 'next', selector: '[aria-label="Next page"], [aria-label="Go to next page"], button[aria-label*="next" i]' },
   }),
 
   // 22. Varafin — SSL cert issue on their server; bypass verification
