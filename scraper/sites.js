@@ -316,13 +316,15 @@ module.exports = [
   }),
 
   // 21. Dealmakers Opportunities — React SPA (Betty Blocks + MUI)
-  // Listings visible without login; detail pages require auth (link still captured)
-  // data-component attributes are stable Betty Blocks identifiers
+  // Detail links hidden behind auth; use title+domain ID, fall back to filter page URL.
+  // Short project names (Heve, Volt etc.) need minTitleLength lowered to 3.
   site({
-    name:     'Dealmakers',
-    domain:   'opportunities.dealmakers.be',
-    startUrl: 'https://opportunities.dealmakers.be/nl/filter',
-    needsJS:  true,
+    name:       'Dealmakers',
+    domain:     'opportunities.dealmakers.be',
+    startUrl:   'https://opportunities.dealmakers.be/nl/filter',
+    needsJS:    true,
+    idStrategy: 'title+domain',
+    filters:    { minTitleLength: 3 },
     selectors: {
       item:        '[data-component="Box"]:has(> h5)',
       title:       'h5',

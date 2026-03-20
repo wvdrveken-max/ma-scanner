@@ -106,7 +106,7 @@ const JUNK_TITLES = new Set([
   'onder bod', 'onder optie', 'read more', 'lees meer', 'meer info',
   'bekijk', 'details', 'contact', 'portfolio', 'aanbod', 'overzicht',
   'home', 'kopen', 'te koop', 'over te nemen', 'bedrijven te koop',
-  'referenties', 'references', 'opdrachten',
+  'referenties', 'references', 'opdrachten', 'opportunity name',
 ]);
 
 function stripBoilerplate(text) {
