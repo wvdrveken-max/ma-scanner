@@ -144,18 +144,13 @@ module.exports = [
     pagination: { type: 'next', selector: 'a.next-page, a[rel="next"]' },
   }),
 
-  // 8. Blue-Bridge — JS-rendered (Salient/WPBakery theme)
+  // 8. Blue-Bridge — DISABLED: company no longer operating
   site({
-    name:     'Blue-Bridge',
-    domain:   'blue-bridge.be',
+    name:    'Blue-Bridge',
+    domain:  'blue-bridge.be',
     startUrl: 'https://www.blue-bridge.be/portfolio',
-    needsJS:  true,
-    selectors: {
-      item:        '.portfolio-item, article, .case, .wpb_wrapper .vc_col-sm-4, .vc_col-sm-3',
-      title:       'h2, h3, h4, .title',
-      description: 'p, .description, .excerpt',
-      link:        'a',
-    },
+    enabled: false,
+    selectors: { item: 'article', title: 'h2', description: 'p', link: 'a' },
   }),
 
   // 9. MultipleChoice — DISABLED: not a listing directory (service overview site)
