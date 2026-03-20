@@ -1,0 +1,59 @@
+name: MA Scanner
+
+on:
+  schedule:
+    - cron: "0 5 * * *"   # 5 AM UTC = 6 AM CET (winter) / 7 AM CEST (summer)
+  workflow_dispatch:       # Allow manual trigger from GitHub UI
+
+concurrency:
+  group: ma-scanner
+  cancel-in-progress: false  # Queue next run; never cancel an active scrape
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Cache Puppeteer browsers
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/puppeteer
+          # Key includes package-lock hash so cache invalidates on Puppeteer version bump
+          key: puppeteer-${{ runner.os }}-${{ hashFiles('package-lock.json') }}
+          restore-keys: |
+            puppeteer-${{ runner.os }}-
+
+      - name: Install Chrome (Puppeteer)
+        run: npx puppeteer browsers install chrome
+
+      - name: Run scanner
+        run: node index.js 2>&1 | tee /tmp/ma-scanner-${{ github.run_id }}.log
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SMTP_HOST:    ${{ secrets.SMTP_HOST }}
+          SMTP_PORT:    587
+          SMTP_USER:    ${{ secrets.SMTP_USER }}
+          SMTP_PASS:    ${{ secrets.SMTP_PASS }}
+          SMTP_FROM:    ${{ secrets.SMTP_FROM }}
+          NOTIFY_TO:    ${{ secrets.NOTIFY_TO }}
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: scanner-logs-${{ github.run_id }}
+          path: /tmp/ma-scanner-${{ github.run_id }}.log
+          retention-days: 7
