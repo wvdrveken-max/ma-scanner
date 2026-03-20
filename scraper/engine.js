@@ -3,6 +3,7 @@
 const axios   = require('axios');
 const cheerio = require('cheerio');
 const crypto  = require('crypto');
+const https   = require('https');
 const { URL } = require('url');
 const logger  = require('../utils/logger');
 
@@ -147,7 +148,7 @@ function normalizeListing(raw, siteConfig) {
 // ---------------------------------------------------------------------------
 // fetchWithCheerio — axios + cheerio, 3 retries with exponential backoff
 // ---------------------------------------------------------------------------
-async function fetchWithCheerio(url) {
+async function fetchWithCheerio(url, { ignoreSSLErrors = false } = {}) {
   const RETRYABLE = new Set([429, 500, 502, 503, 504]);
   let attempt = 0;
   let lastErr;
@@ -165,6 +166,9 @@ async function fetchWithCheerio(url) {
         },
         maxRedirects: 5,
         validateStatus: null, // handle status ourselves
+        ...(ignoreSSLErrors && {
+          httpsAgent: new https.Agent({ rejectUnauthorized: false }),
+        }),
       });
 
       const status = resp.status;
@@ -298,8 +302,13 @@ function extractListings($, siteConfig, pageUrl) {
   $(selectors.item).each((_, el) => {
     const $el = $(el);
 
-    let title = $el.find(selectors.title).first().text().trim();
-    if (!title) title = $el.find(selectors.title).first().attr('title') || '';
+    let title = '';
+    if (selectors.title) {
+      title = $el.find(selectors.title).first().text().trim();
+      if (!title) title = $el.find(selectors.title).first().attr('title') || '';
+    }
+    // Fallback: use the item element's own text (e.g. when item is <h3> and title selector is empty)
+    if (!title) title = $el.text().trim();
 
     let link = $el.find(selectors.link).first().attr('href');
     if (!link) link = $el.is('a') ? $el.attr('href') : null;
@@ -367,7 +376,7 @@ async function scrape(siteConfig, browser) {
           $ = await fetchWithPuppeteer(currentUrl, browser);
           if (usedFallback) fetchMode = 'fallback';
         } else {
-          $ = await fetchWithCheerio(currentUrl);
+          $ = await fetchWithCheerio(currentUrl, { ignoreSSLErrors: siteConfig.ignoreSSLErrors });
         }
       } catch (fetchErr) {
         logger.warn('page_fetch_failed', MODULE, { site: name, url: currentUrl, err: fetchErr.message });
