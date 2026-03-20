@@ -136,12 +136,18 @@ function normalizeListing(raw, siteConfig) {
   const minTitleLength = filters.minTitleLength ?? 5;
 
   // URL — validate first so we can use it for slug fallback
-  const canonUrl = canonicalizeUrl(raw.url, startUrl);
+  let canonUrl = canonicalizeUrl(raw.url, startUrl);
+  // For title+domain sites with no individual URLs, fall back to the start
+  // page URL so the listing still passes normalization (ID comes from title).
+  if (!canonUrl && idStrategy === 'title+domain') {
+    canonUrl = canonicalizeUrl(startUrl, startUrl);
+  }
   if (!canonUrl) return null;
 
   // Filter out the category/start page leaking in as a listing
+  // (skip this check for title+domain since their URL IS the start page)
   const canonStart = canonicalizeUrl(startUrl, startUrl);
-  if (canonUrl === canonStart) return null;
+  if (idStrategy !== 'title+domain' && canonUrl === canonStart) return null;
 
   // Title — check for junk labels and fall back to URL slug
   let title = stripBoilerplate((raw.title || '').replace(/\s+/g, ' ').trim());

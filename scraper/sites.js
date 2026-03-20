@@ -175,11 +175,12 @@ module.exports = [
     pagination: { type: 'next', selector: 'a.next, a[rel="next"]' },
   }),
 
-  // 11. KMO Overname — Drupal 10, server-rendered views rows
+  // 11. KMO Overname — Drupal 10, server-rendered views rows (no per-listing URLs)
   site({
-    name:     'KMO Overname',
-    domain:   'kmo-overname.be',
-    startUrl: 'https://www.kmo-overname.be/bedrijven/aanbod-kmo-overnames',
+    name:       'KMO Overname',
+    domain:     'kmo-overname.be',
+    startUrl:   'https://www.kmo-overname.be/bedrijven/aanbod-kmo-overnames',
+    idStrategy: 'title+domain', // no individual URLs in view rows
     selectors: {
       item:        '.views-row',
       title:       'h2',
