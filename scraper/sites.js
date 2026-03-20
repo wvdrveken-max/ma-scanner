@@ -64,7 +64,7 @@ module.exports = [
     selectors: {
       item:        'a[href*="/kopen/"]',
       title:       'h3',
-      description: 'p',
+      description: 'p, span, .description, .excerpt, .sector, .location, [class*="sector"], [class*="location"], [class*="desc"]',
       link:        '', // item itself is the <a>
     },
     pagination: { type: 'numbered', selector: 'ul li a[href*="/kopen"]' },

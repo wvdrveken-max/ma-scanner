@@ -5,8 +5,7 @@ const logger     = require('../utils/logger');
 
 const MODULE = 'mailer';
 
-const MAX_ITEMS_PER_SOURCE = 10;
-const MAX_TOTAL_ITEMS      = 50;
+// No cap on listings — all new opportunities are shown in a condensed table.
 
 // ---------------------------------------------------------------------------
 // Transporter (lazy singleton)
@@ -44,7 +43,7 @@ function formatDate(d = new Date()) {
 // ---------------------------------------------------------------------------
 // Truncate description for email display
 // ---------------------------------------------------------------------------
-function truncate(text, max = 400) {
+function truncate(text, max = 160) {
   if (!text) return '';
   return text.length <= max ? text : text.slice(0, max - 1) + '…';
 }
@@ -62,93 +61,71 @@ function escapeHtml(str) {
 
 const CSS = `
   body { font-family: Arial, Helvetica, sans-serif; background: #f5f5f5; margin: 0; padding: 0; }
-  .wrapper { max-width: 680px; margin: 24px auto; background: #fff; border-radius: 8px; overflow: hidden; }
-  .header { background: #1a2e4a; color: #fff; padding: 24px 32px; }
-  .header h1 { margin: 0; font-size: 20px; }
-  .summary { background: #eef2f7; padding: 16px 32px; font-size: 14px; color: #444; }
+  .wrapper { max-width: 780px; margin: 24px auto; background: #fff; border-radius: 8px; overflow: hidden; }
+  .header { background: #1a2e4a; color: #fff; padding: 20px 28px; }
+  .header h1 { margin: 0; font-size: 18px; }
+  .summary { background: #eef2f7; padding: 12px 28px; font-size: 13px; color: #444; }
   .summary span { margin-right: 20px; }
-  .source-section { padding: 24px 32px 0; }
-  .source-section h2 { font-size: 16px; color: #1a2e4a; border-bottom: 2px solid #eef2f7; padding-bottom: 8px; margin-bottom: 16px; }
-  .listing { margin-bottom: 20px; padding-bottom: 20px; border-bottom: 1px solid #f0f0f0; }
-  .listing:last-child { border-bottom: none; }
-  .listing-title { font-size: 15px; font-weight: bold; color: #1a2e4a; margin: 0 0 4px; }
-  .listing-desc { font-size: 13px; color: #555; margin: 4px 0 10px; line-height: 1.5; }
-  .btn { display: inline-block; background: #2563eb; color: #fff; text-decoration: none;
-         padding: 7px 16px; border-radius: 4px; font-size: 13px; }
-  .overflow { font-size: 13px; color: #888; font-style: italic; margin: 8px 0 24px; }
-  .footer { background: #f5f5f5; padding: 16px 32px; font-size: 12px; color: #888; }
-  .footer .errors { color: #c0392b; margin-top: 8px; }
+  .tbl { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .tbl th { background: #1a2e4a; color: #fff; text-align: left; padding: 8px 10px; font-size: 12px; font-weight: 600; }
+  .tbl td { padding: 7px 10px; vertical-align: top; border-bottom: 1px solid #f0f0f0; }
+  .tbl tr:last-child td { border-bottom: none; }
+  .tbl tr.src-header td { background: #eef2f7; font-weight: 700; font-size: 12px;
+                           color: #1a2e4a; padding: 5px 10px; border-bottom: 1px solid #d8e4f0; }
+  .t-title { font-weight: 600; color: #1a2e4a; }
+  .t-desc { color: #666; font-size: 12px; margin-top: 2px; line-height: 1.4; }
+  .btn { display: inline-block; background: #2563eb; color: #fff !important; text-decoration: none;
+         padding: 4px 10px; border-radius: 3px; font-size: 11px; white-space: nowrap; }
+  .footer { background: #f5f5f5; padding: 14px 28px; font-size: 11px; color: #888; }
+  .footer .errors { color: #c0392b; margin-top: 6px; }
 `;
 
 // ---------------------------------------------------------------------------
-// Build HTML digest email
+// Build HTML digest email — compact table, no cap on listings
 // ---------------------------------------------------------------------------
 function buildDigestHtml(listings, runStats) {
   const {
-    ranAt        = new Date(),
-    totalSites   = 0,
-    sitesSucceeded = 0,
-    sitesFailed  = 0,
+    ranAt             = new Date(),
+    totalSites        = 0,
+    sitesSucceeded    = 0,
+    sitesFailed       = 0,
     failedSiteDetails = [],
   } = runStats;
 
-  // Group by source
+  // Group by source (preserve insertion order)
   const bySource = {};
   for (const l of listings) {
     (bySource[l.source] = bySource[l.source] || []).push(l);
   }
 
-  let totalRendered = 0;
-  let sourceSections = '';
-  let plainSections  = '';
+  let tableRows  = '';
+  let plainLines = '';
 
   for (const [source, items] of Object.entries(bySource)) {
-    if (totalRendered >= MAX_TOTAL_ITEMS) break;
+    // Source header row
+    tableRows += `<tr class="src-header"><td colspan="2">${escapeHtml(source)} (${items.length})</td><td></td></tr>`;
+    plainLines += `\n=== ${source} (${items.length}) ===\n`;
 
-    const toShow  = items.slice(0, Math.min(MAX_ITEMS_PER_SOURCE, MAX_TOTAL_ITEMS - totalRendered));
-    const overflow = items.length - toShow.length;
-
-    let listingsHtml  = '';
-    let listingsPlain = '';
-
-    for (const l of toShow) {
+    for (const l of items) {
       const desc = truncate(l.description);
-      listingsHtml += `
-        <div class="listing">
-          <p class="listing-title">${escapeHtml(l.title)}</p>
-          ${desc ? `<p class="listing-desc">${escapeHtml(desc)}</p>` : ''}
-          <a class="btn" href="${escapeHtml(l.url)}">View Opportunity</a>
-        </div>`;
-      listingsPlain += `  - ${l.title}\n    ${l.url}\n${desc ? `    ${desc}\n` : ''}`;
+      tableRows += `
+        <tr>
+          <td>
+            <div class="t-title">${escapeHtml(l.title)}</div>
+            ${desc ? `<div class="t-desc">${escapeHtml(desc)}</div>` : ''}
+          </td>
+          <td style="width:60px;text-align:center;">
+            <a class="btn" href="${escapeHtml(l.url)}">View</a>
+          </td>
+        </tr>`;
+      plainLines += `  - ${l.title}\n    ${l.url}\n${desc ? `    ${desc}\n` : ''}`;
     }
-
-    const overflowHtml  = overflow > 0 ? `<p class="overflow">…and ${overflow} more from ${escapeHtml(source)}</p>` : '';
-    const overflowPlain = overflow > 0 ? `  …and ${overflow} more from ${source}\n` : '';
-
-    sourceSections += `
-      <div class="source-section">
-        <h2>${escapeHtml(source)}</h2>
-        ${listingsHtml}
-        ${overflowHtml}
-      </div>`;
-
-    plainSections += `\n=== ${source} ===\n${listingsPlain}${overflowPlain}`;
-    totalRendered += toShow.length;
   }
-
-  // Global overflow
-  const globalOverflow = listings.length - totalRendered;
-  const globalOverflowHtml = globalOverflow > 0
-    ? `<div style="padding: 0 32px 24px; font-size: 13px; color: #888;">
-         <em>${globalOverflow} additional opportunities not shown — all stored in the database.</em>
-       </div>`
-    : '';
 
   // Errors in footer
   const errorsHtml = failedSiteDetails.length > 0
     ? `<div class="errors">Sites with errors: ${failedSiteDetails.map((e) => escapeHtml(e)).join(', ')}</div>`
     : '';
-
   const errorsPlain = failedSiteDetails.length > 0
     ? `\nSites with errors: ${failedSiteDetails.join(', ')}`
     : '';
@@ -167,8 +144,10 @@ function buildDigestHtml(listings, runStats) {
     <span><strong>${sitesSucceeded}</strong> succeeded</span>
     ${sitesFailed > 0 ? `<span style="color:#c0392b"><strong>${sitesFailed}</strong> failed</span>` : ''}
   </div>
-  ${sourceSections}
-  ${globalOverflowHtml}
+  <table class="tbl">
+    <thead><tr><th>Opportunity</th><th></th></tr></thead>
+    <tbody>${tableRows}</tbody>
+  </table>
   <div class="footer">
     Run completed: ${ranAt.toISOString()} UTC
     ${errorsHtml}
@@ -181,8 +160,7 @@ function buildDigestHtml(listings, runStats) {
 
 Sites scanned: ${totalSites} | Succeeded: ${sitesSucceeded} | Failed: ${sitesFailed}
 New opportunities: ${listings.length}
-${plainSections}
-${globalOverflow > 0 ? `\n${globalOverflow} additional opportunities not shown.\n` : ''}
+${plainLines}
 Run: ${ranAt.toISOString()} UTC${errorsPlain}
 `;
 
