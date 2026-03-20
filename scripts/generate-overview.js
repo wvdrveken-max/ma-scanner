@@ -133,6 +133,19 @@ function generateHtml(rows) {
   .view-btn { display: inline-block; background: #2563eb; color: #fff; text-decoration: none; padding: 4px 10px; border-radius: 3px; font-size: 11px; white-space: nowrap; }
   .view-btn:hover { background: #1d4ed8; }
   .no-results { padding: 48px; text-align: center; color: #888; font-size: 14px; }
+  .c-source-inline { display: none; font-size: 11px; color: #888; margin-bottom: 2px; }
+  @media (max-width: 600px) {
+    .header { padding: 16px; }
+    .header h1 { font-size: 17px; }
+    .controls { padding: 10px 16px; gap: 8px; }
+    .controls input { width: 100%; }
+    .controls .spacer { display: none; }
+    .count { padding: 6px 16px; }
+    th.col-source, td.c-source { display: none; }
+    th.col-date,   td.c-date   { display: none; }
+    .c-source-inline { display: block; }
+    td { padding: 8px 10px; }
+  }
 </style>
 </head>
 <body>
@@ -162,9 +175,9 @@ function generateHtml(rows) {
 <table>
   <thead>
     <tr>
-      <th>Source</th>
+      <th class="col-source">Source</th>
       <th>Opportunity</th>
-      <th>Date found</th>
+      <th class="col-date">Date found</th>
       <th></th>
     </tr>
   </thead>
@@ -217,6 +230,7 @@ function applyFilters() {
     <tr>
       <td class="c-source">\${esc(r.source)}</td>
       <td>
+        <div class="c-source-inline">\${esc(r.source)} &middot; \${r.date}</div>
         <div class="c-title">\${esc(r.title)}</div>
         \${r.desc ? '<div class="c-desc">' + esc(r.desc) + '</div>' : ''}
       </td>
