@@ -70,19 +70,18 @@ module.exports = [
     pagination: { type: 'numbered', selector: 'ul li a[href*="/kopen"]' },
   }),
 
-  // 2. TakeoverServices — JS-rendered, static HTML returns only CSS/GTM
+  // 2. TakeoverServices — Site123 builder platform
   site({
     name:     'TakeoverServices',
     domain:   'takeoverservices.com',
     startUrl: 'https://www.takeoverservices.com/over-te-nemen-1',
     needsJS:  true,
     selectors: {
-      item:        '.listing, .bedrijf, article, .item, .grid-item',
-      title:       'h2, h3, .title',
+      item:        '.product-container, .s123-module-products-item, .s123-ajax-products article',
+      title:       'h3, h4, .title, .product-title',
       description: 'p, .description',
       link:        'a',
     },
-    pagination: { type: 'numbered', selector: '.pagination a, a[href*="page"]' },
   }),
 
   // 3. Group-P — item confirmed: .w-grid-item
@@ -129,19 +128,19 @@ module.exports = [
     selectors: { item: '.property', title: 'h2', description: 'p', link: 'a' },
   }),
 
-  // 7. AD Corporate — JS-rendered, Cheerio gets no listings
+  // 7. AD Corporate — listings embedded via iframe from bedrijventekoop.be
+  // Point directly at the iframe URL which is server-rendered HTML
   site({
     name:     'AD Corporate',
     domain:   'adcorporate.be',
-    startUrl: 'https://www.adcorporate.be/aanbod/',
-    needsJS:  true,
+    startUrl: 'https://www.bedrijventekoop.be/iframe/adcorporate',
     selectors: {
-      item:        'article, .aanbod-item, .post, .case',
-      title:       'h2, h3, .entry-title, .title',
-      description: 'p, .excerpt, .description',
-      link:        'a',
+      item:        '.search-result-item',
+      title:       'a.description-name',
+      description: 'a.description',
+      link:        'a.description-name',
     },
-    pagination: { type: 'next', selector: 'a.next-page, a[rel="next"]' },
+    pagination: { type: 'next', selector: 'a[rel="next"], .paginator a.next, .paginator a:last-child' },
   }),
 
   // 8. Blue-Bridge — DISABLED: company no longer operating
@@ -176,19 +175,18 @@ module.exports = [
     pagination: { type: 'next', selector: 'a.next, a[rel="next"]' },
   }),
 
-  // 11. KMO Overname — JS-rendered or unusual structure (no links in static HTML)
+  // 11. KMO Overname — Drupal 10, server-rendered views rows
   site({
     name:     'KMO Overname',
     domain:   'kmo-overname.be',
     startUrl: 'https://www.kmo-overname.be/bedrijven/aanbod-kmo-overnames',
-    needsJS:  true,
     selectors: {
-      item:        '.bedrijf, article, .listing, .case-item, .card',
-      title:       'h2, h3, .bedrijfsnaam, .title',
-      description: '.omschrijving, p, .description',
+      item:        '.views-row',
+      title:       'h2',
+      description: 'p',
       link:        'a',
     },
-    pagination: { type: 'next', selector: 'a.next, a[rel="next"]' },
+    pagination: { type: 'next', selector: 'a[rel="next"], li.pager__item--next a' },
   }),
 
   // 12. Van Damme Partners — items are <li> with links to /bedrijven/[slug]
@@ -288,7 +286,7 @@ module.exports = [
     },
   }),
 
-  // 19. A-Square — WordPress + HivePress marketplace plugin (server-rendered)
+  // 19. A-Square — WordPress + WPBakery Visual Composer grid (server-rendered)
   // HTTP only (no HTTPS cert); Chromium blocks HTTP so Puppeteer fallback is disabled
   site({
     name:               'A-Square',
@@ -296,40 +294,40 @@ module.exports = [
     startUrl:           'http://a-square.be/',
     noPuppeteerFallback: true, // Chromium blocks plain HTTP navigation
     selectors: {
-      item:        'article.hp-listing',
-      title:       '.hp-listing__title, h3',
-      description: '.hp-listing__content, p',
-      link:        '.hp-listing__link, a',
+      item:        '.vc_grid-item',
+      title:       'h4, .vc_custom_heading',
+      description: '.type-textarea, p',
+      link:        'a.vc_gitem-link, a',
     },
   }),
 
-  // 20. Advisory Team — JS-rendered, static HTML has no listings
+  // 20. Advisory Team — server-rendered, confirmed 2 listings currently
   site({
     name:     'Advisory Team',
     domain:   'advisoryteam.be',
     startUrl: 'https://www.advisoryteam.be/overnames',
-    needsJS:  true,
     selectors: {
-      item:        'article, .overname, .listing, .case, .card',
-      title:       'h2, h3, .title',
-      description: 'p, .description, .excerpt',
-      link:        'a',
+      item:        '.highlights-overview__item',
+      title:       'h2',
+      description: 'p',
+      link:        'a.btn',
     },
   }),
 
-  // 21. Dealmakers Opportunities — JS-rendered (was already marked)
+  // 21. Dealmakers Opportunities — React SPA (Betty Blocks + Material UI)
+  // Puppeteer renders the full app; selectors target MUI card components
   site({
     name:     'Dealmakers',
     domain:   'opportunities.dealmakers.be',
     startUrl: 'https://opportunities.dealmakers.be/nl/filter',
     needsJS:  true,
     selectors: {
-      item:        '.opportunity, article, .listing, .deal, .card',
-      title:       'h2, h3, .title, .opportunity-title',
-      description: 'p, .description, .excerpt',
+      item:        '.MuiCard-root, .MuiPaper-root, [class*="Card-root"], [class*="card-root"]',
+      title:       'h2, h3, h4, h5, [class*="title"], [class*="Title"]',
+      description: 'p, [class*="description"], [class*="Description"], [class*="subtitle"]',
       link:        'a',
     },
-    pagination: { type: 'next', selector: 'a.next, button.next, [aria-label="Next"]' },
+    pagination: { type: 'next', selector: '[aria-label="Next page"], [aria-label="Go to next page"], button[aria-label*="next" i]' },
   }),
 
   // 22. Varafin — SSL cert issue on their server; bypass verification
