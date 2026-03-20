@@ -18,6 +18,23 @@
 //   idStrategy      — 'url' (preferred) | 'title+domain' (emergency fallback, no stable URLs)
 // ---------------------------------------------------------------------------
 
+// Common "next page" selector tried on every site that has pagination type 'next'.
+// If no matching element is found the engine simply stops — safe to use as default.
+const NEXT_SELECTOR = [
+  'a[rel="next"]',
+  'a.next',
+  'a.next-page',
+  '.pagination a:last-child',
+  '.pager a:last-child',
+  'li.next a',
+  'a:contains("Volgende")',
+  'a:contains("volgende")',
+  'a:contains("Next")',
+  'a:contains(">")',
+  '[aria-label="Next page"]',
+  '[aria-label="Volgende pagina"]',
+].join(', ');
+
 const DEFAULTS = {
   enabled:         true,
   needsJS:         false,
@@ -27,6 +44,9 @@ const DEFAULTS = {
   rateLimitMsMax:  4000,
   idStrategy:      'url',
   filters:         { minTitleLength: 5 },
+  // Default: always try to follow a next-page link.
+  // Sites with no pagination simply won't find a next link and stop at page 1.
+  pagination:      { type: 'next', selector: NEXT_SELECTOR },
 };
 
 function site(overrides) {
@@ -76,7 +96,6 @@ module.exports = [
       description: '.usg_post_custom_field_1, p',
       link:        'a',
     },
-    pagination: { type: 'none' },
   }),
 
   // 4. De Brugse Databank — DISABLED: URL returns 404
@@ -86,7 +105,6 @@ module.exports = [
     startUrl: 'https://www.de-brugse-databank.be/Producten/Overtenemen/AanbodOvertenemen.html',
     enabled: false, // 404 — page no longer exists
     selectors: { item: 'tr', title: 'td', description: 'td', link: 'a' },
-    pagination: { type: 'none' },
   }),
 
   // 5. 2sell.be — item: div.block, link: a.arrow-link
@@ -100,7 +118,6 @@ module.exports = [
       description: 'div.text-section p, p',
       link:        'a.arrow-link, a',
     },
-    pagination: { type: 'none' },
   }),
 
   // 6. Pro-Maxx — DISABLED: connection error (HTTP site, unresponsive)
@@ -110,7 +127,6 @@ module.exports = [
     startUrl: 'http://www.pro-maxx.be/nl/te-koop/',
     enabled: false, // socket connection error, site unresponsive
     selectors: { item: '.property', title: 'h2', description: 'p', link: 'a' },
-    pagination: { type: 'none' },
   }),
 
   // 7. AD Corporate — JS-rendered, Cheerio gets no listings
@@ -140,7 +156,6 @@ module.exports = [
       description: 'p, .description, .excerpt',
       link:        'a',
     },
-    pagination: { type: 'none' },
   }),
 
   // 9. MultipleChoice — DISABLED: not a listing directory (service overview site)
@@ -150,7 +165,6 @@ module.exports = [
     startUrl: 'https://multiplechoice.be/',
     enabled: false, // single-page service site, no individual listings
     selectors: { item: 'article', title: 'h2', description: 'p', link: 'a' },
-    pagination: { type: 'none' },
   }),
 
   // 10. Overname Partners — Elementor, item is <a> wrapping each card
@@ -232,7 +246,6 @@ module.exports = [
     startUrl: 'https://www.davinci-cf.be/nl/portefeuille',
     enabled: false, // 404 — page no longer exists
     selectors: { item: '.case', title: 'h2', description: 'p', link: 'a' },
-    pagination: { type: 'none' },
   }),
 
   // 16. Coforce — table-based layout, link is in the description column
@@ -246,7 +259,6 @@ module.exports = [
       description: 'td:nth-child(3), td:nth-child(2)',
       link:        'td a',
     },
-    pagination: { type: 'none' },
   }),
 
   // 17. Finactor — item is <a> linking to /bedrijven-te-koop/[slug]
@@ -274,7 +286,6 @@ module.exports = [
       description: 'p',
       link:        '', // item itself is the <a>
     },
-    pagination: { type: 'none' },
   }),
 
   // 19. A-Square — DISABLED: self-signed SSL cert + ERR_BLOCKED_BY_CLIENT
@@ -284,7 +295,6 @@ module.exports = [
     startUrl: 'http://a-square.be/',
     enabled: false, // self-signed cert + blocked in headless Chrome
     selectors: { item: 'article', title: 'h2', description: 'p', link: 'a' },
-    pagination: { type: 'none' },
   }),
 
   // 20. Advisory Team — JS-rendered, static HTML has no listings
@@ -299,7 +309,6 @@ module.exports = [
       description: 'p, .description, .excerpt',
       link:        'a',
     },
-    pagination: { type: 'none' },
   }),
 
   // 21. Dealmakers Opportunities — JS-rendered (was already marked)
@@ -329,7 +338,6 @@ module.exports = [
       description: 'p, .description, td',
       link:        'a',
     },
-    pagination: { type: 'none' },
   }),
 
   // 23. Atkinson — listings as h3 headings with metadata; idStrategy fallback
@@ -344,7 +352,6 @@ module.exports = [
       description: 'p',
       link:        'a[href*="/portefeuille/"]',
     },
-    pagination: { type: 'none' },
   }),
 
   // 24. BedrijvenTeKoop — listings loaded dynamically via JS
