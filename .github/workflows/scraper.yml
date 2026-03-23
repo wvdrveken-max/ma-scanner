@@ -2,7 +2,7 @@ name: MA Scanner
 
 on:
   schedule:
-    - cron: "0 5 * * *"   # 5 AM UTC = 6 AM CET (winter) / 7 AM CEST (summer)
+    - cron: "0 3 * * *"   # 3 AM UTC = 4 AM CET (winter) / 5 AM CEST (summer)
   workflow_dispatch:       # Allow manual trigger from GitHub UI
 
 concurrency:
