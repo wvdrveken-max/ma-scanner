@@ -78,9 +78,19 @@ jobs:
 
       - name: Keep workflow alive
         if: always()
-        uses: gautamkrishnar/keepalive-workflow@v2
-        with:
-          time_elapsed: 45
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # GitHub disables scheduled workflows after 60 days of repo inactivity.
+          # Commits via GITHUB_TOKEN git-push do NOT count as activity.
+          # Commits via the GitHub Contents API DO count, so we use that.
+          TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
+          CONTENT=$(echo "$TIMESTAMP" | base64 -w0)
+          SHA=$(gh api "repos/${{ github.repository }}/contents/.github/last_run.txt" --jq '.sha' 2>/dev/null || true)
+          ARGS=(-X PUT -f "message=chore: keep-alive $TIMESTAMP" -f "content=$CONTENT" -f "branch=main")
+          [ -n "$SHA" ] && ARGS+=(-f "sha=$SHA")
+          gh api "repos/${{ github.repository }}/contents/.github/last_run.txt" "${ARGS[@]}" > /dev/null 2>&1 && \
+            echo "Keepalive commit created" || echo "Keepalive failed (non-critical)"
 
       - name: Upload logs on failure
         if: failure()
