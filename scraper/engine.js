@@ -252,7 +252,7 @@ async function fetchWithCheerio(url, { ignoreSSLErrors = false } = {}) {
 // ---------------------------------------------------------------------------
 // fetchWithPuppeteer — uses shared browser instance passed from caller
 // ---------------------------------------------------------------------------
-async function fetchWithPuppeteer(url, browser) {
+async function fetchWithPuppeteer(url, browser, { ignoreSSLErrors = false } = {}) {
   let page;
   try {
     page = await browser.newPage();
@@ -270,7 +270,7 @@ async function fetchWithPuppeteer(url, browser) {
       }
     });
 
-    await page.goto(url, { waitUntil: 'networkidle2', timeout: 30_000 });
+    await page.goto(url, { waitUntil: 'networkidle2', timeout: 30_000, ignoreHTTPSErrors: ignoreSSLErrors });
     const html = await page.content();
     logger.debug('puppeteer_fetch_ok', MODULE, { url });
     return cheerio.load(html);
@@ -413,7 +413,7 @@ async function scrape(siteConfig, browser) {
       let $;
       try {
         if (needsJS || usedFallback) {
-          $ = await fetchWithPuppeteer(currentUrl, browser);
+          $ = await fetchWithPuppeteer(currentUrl, browser, { ignoreSSLErrors: siteConfig.ignoreSSLErrors });
           if (usedFallback) fetchMode = 'fallback';
         } else {
           $ = await fetchWithCheerio(currentUrl, { ignoreSSLErrors: siteConfig.ignoreSSLErrors });

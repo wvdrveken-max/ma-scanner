@@ -75,6 +75,20 @@ async function countListings() {
 }
 
 // ---------------------------------------------------------------------------
+// Get listings inserted since a given timestamp — used to build digest email
+// ---------------------------------------------------------------------------
+async function getNewListingsSince(since) {
+  const { rows } = await pool.query(
+    `SELECT source, source_domain, url, title, description
+     FROM   ma_listings
+     WHERE  first_seen_at >= $1
+     ORDER  BY source, title`,
+    [since],
+  );
+  return rows;
+}
+
+// ---------------------------------------------------------------------------
 // Upsert listings
 //
 // Uses xmax trick: xmax = 0 on a fresh insert, non-zero on an update.
@@ -177,7 +191,7 @@ async function getBaselinePerSite() {
     for (const site of stats) {
       if (site.status === 'success' && !baseline.has(site.site)) {
         baseline.set(site.site, {
-          listingsFound: site.normalizedValidListings ?? 0,
+          listingsFound: site.dedupedListings ?? site.normalizedValidListings ?? 0,
           pagesVisited:  site.pagesVisited ?? 0,
         });
       }
@@ -241,4 +255,4 @@ async function close() {
   }
 }
 
-module.exports = { connect, migrate, countListings, upsertListings, getBaselinePerSite, logRun, close };
+module.exports = { connect, migrate, countListings, getNewListingsSince, upsertListings, getBaselinePerSite, logRun, close };

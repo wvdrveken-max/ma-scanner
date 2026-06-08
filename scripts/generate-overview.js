@@ -48,8 +48,15 @@ async function main() {
   try {
     const result = await pool.query(
       `SELECT source, url, title, description, first_seen_at
-       FROM ma_listings
-       ORDER BY first_seen_at DESC`
+       FROM (
+         SELECT *,
+           COUNT(*) OVER (PARTITION BY source, first_seen_at::date) AS source_day_count
+         FROM ma_listings
+       ) sub
+       ORDER BY
+         first_seen_at::date DESC,
+         source_day_count ASC,
+         first_seen_at DESC`
     );
     rows = result.rows;
   } finally {

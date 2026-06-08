@@ -74,8 +74,8 @@ function detectAnomalies(perSiteStats, baseline) {
 
     const base = baseline.get(stat.site);
 
-    // Extraction anomaly: found raw items but none survived normalization
-    if (stat.rawItemsFound > 0 && stat.normalizedValidListings === 0) {
+    // Extraction anomaly: found raw items but none survived normalization+dedup
+    if (stat.rawItemsFound > 0 && stat.dedupedListings === 0) {
       anomalies.push({
         site:   stat.site,
         reason: `Extraction anomaly: ${stat.rawItemsFound} raw items found but 0 survived normalization (selector or parse issue)`,
@@ -85,7 +85,7 @@ function detectAnomalies(perSiteStats, baseline) {
 
     if (!base) continue; // no baseline yet for this site
 
-    const current = stat.normalizedValidListings;
+    const current = stat.dedupedListings;
 
     // Hard anomaly: site had listings before, now has zero
     if (base.listingsFound > 0 && current === 0) {
@@ -241,16 +241,47 @@ async function main() {
     logger.info('dry_run_skip_upsert', MODULE, { wouldInsert: dedupedAll.length });
   }
 
-  // Patch newListingsInserted back onto per-site stats (best-effort proportional)
-  // We track counts per domain from the upserted set
+  // Fetch newly inserted listings from DB — used for email digest and per-site counts
+  let newListings = [];
   const newByDomain = {};
   if (!flags.dryRun && insertedCount > 0) {
-    for (const l of dedupedAll) {
-      newByDomain[l.source_domain] = (newByDomain[l.source_domain] || 0);
+    newListings = await db.getNewListingsSince(startedAt).catch((err) => {
+      logger.error('get_new_listings_failed', MODULE, { err: err.message });
+      return [];
+    });
+
+    // Patch accurate per-site newListingsInserted into stats for logging
+    for (const l of newListings) {
+      newByDomain[l.source_domain] = (newByDomain[l.source_domain] || 0) + 1;
     }
-    // We can't know per-site counts from a bulk upsert; set to 0 for per-site
-    // The total insertedCount is accurate at run level
+    for (const stat of perSiteStats) {
+      stat.newListingsInserted = newByDomain[stat.site] || 0;
+    }
   }
+
+  // Log sites that are newly appearing (no prior baseline, all listings are new inserts).
+  // Informational only — we no longer suppress these from the email because the filter
+  // was causing legitimate new listings (e.g. from sites recovering after scrape failures)
+  // to be silently dropped. The isFirstRun check already handles the truly-empty-DB case.
+  const activatedDomains = new Set(
+    perSiteStats
+      .filter((s) => {
+        if (s.status !== 'success' || s.dedupedListings === 0) return false;
+        if (baseline.has(s.site)) return false;
+        const inserted = newByDomain[s.site] || 0;
+        return inserted >= s.dedupedListings;
+      })
+      .map((s) => s.site),
+  );
+  if (activatedDomains.size > 0) {
+    logger.info('new_sites_activated', MODULE, {
+      domains:  [...activatedDomains],
+      listings: newListings.filter((l) => activatedDomains.has(l.source_domain)).length,
+    });
+  }
+
+  // All new inserts go to the digest — no site-level suppression.
+  const digestListings = newListings;
 
   // Classify site outcomes
   const siteFailures = perSiteStats
@@ -285,12 +316,9 @@ async function main() {
       failedSiteDetails: siteFailures.map((f) => `${f.site} (${f.reason})`),
     };
 
-    // Digest — skip on first run
-    if (!isFirstRun && insertedCount > 0) {
-      // Fetch the newly inserted listings to pass to email
-      // (use dedupedAll filtered to newly inserted — approximated as full batch on first non-baseline run)
-      const newListings = dedupedAll.slice(0, insertedCount); // conservative; actual new are a subset
-      await sendDigest(newListings, runStats).catch((err) => {
+    // Digest — skip on first run and when all new listings are from first-time activations
+    if (!isFirstRun && digestListings.length > 0) {
+      await sendDigest(digestListings, runStats).catch((err) => {
         logger.error('digest_send_error', MODULE, { err: err.message });
       });
     } else if (!isFirstRun) {

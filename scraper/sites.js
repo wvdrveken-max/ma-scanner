@@ -67,7 +67,10 @@ module.exports = [
       description: 'p, span, .description, .excerpt, .sector, .location, [class*="sector"], [class*="location"], [class*="desc"]',
       link:        '', // item itself is the <a>
     },
-    pagination: { type: 'numbered', selector: 'ul li a[href*="/kopen"]' },
+    // Pagination selector must NOT match listing detail links (/kopen/slug).
+    // :not([href*="/kopen/"]) ensures only category-level links (/kopen, /kopen?page=2)
+    // are considered, preventing listing <a> elements from confusing the active-page detection.
+    pagination: { type: 'numbered', selector: 'a[href*="/kopen"]:not([href*="/kopen/"])' },
   }),
 
   // 2. TakeoverServices — Site123 builder platform
