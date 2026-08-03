@@ -1,0 +1,69 @@
+name: Staatsblad Scanner
+
+on:
+  schedule:
+    - cron: "0 10 * * 1-5"   # 10 AM UTC = 12 PM CEST, weekdays only
+  workflow_dispatch:
+    inputs:
+      date:
+        description: 'Specific date (YYYY-MM-DD)'
+        required: false
+
+concurrency:
+  group: staatsblad-scanner
+  cancel-in-progress: false
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Staatsblad scanner
+        run: |
+          ARGS=""
+          if [ -n "${{ github.event.inputs.date }}" ]; then
+            ARGS="--date=${{ github.event.inputs.date }}"
+          fi
+          node staatsblad-scanner.js $ARGS 2>&1 | tee /tmp/staatsblad-${{ github.run_id }}.log
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          SMTP_HOST:    ${{ secrets.SMTP_HOST }}
+          SMTP_PORT:    587
+          SMTP_USER:    ${{ secrets.SMTP_USER }}
+          SMTP_PASS:    ${{ secrets.SMTP_PASS }}
+          SMTP_FROM:    ${{ secrets.SMTP_FROM }}
+          NOTIFY_TO:    ${{ secrets.NOTIFY_TO }}
+
+      - name: Keep workflow alive
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          TIMESTAMP=$(date -u +"%Y-%m-%d %H:%M UTC")
+          CONTENT=$(echo "$TIMESTAMP" | base64 -w0)
+          SHA=$(gh api "repos/${{ github.repository }}/contents/.github/last_run_staatsblad.txt" --jq '.sha' 2>/dev/null || true)
+          ARGS=(-X PUT -f "message=chore: staatsblad keep-alive $TIMESTAMP" -f "content=$CONTENT" -f "branch=main")
+          [ -n "$SHA" ] && ARGS+=(-f "sha=$SHA")
+          gh api "repos/${{ github.repository }}/contents/.github/last_run_staatsblad.txt" "${ARGS[@]}" > /dev/null 2>&1 && \
+            echo "Keepalive commit created" || echo "Keepalive failed (non-critical)"
+
+      - name: Upload logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: staatsblad-logs-${{ github.run_id }}
+          path: /tmp/staatsblad-${{ github.run_id }}.log
+          retention-days: 7
