@@ -91,11 +91,17 @@ async function main() {
     date:    dateStr,
   });
 
-  // Connect DB (skip in dry-run)
+  // Connect DB (skip in dry-run) — retry once on cold-start timeout (Neon)
   if (!flags.dryRun) {
     db.connect();
     _dbConnected = true;
-    await db.migrate();
+    try {
+      await db.migrate();
+    } catch (err) {
+      logger.warn('migrate_retry', MODULE, { err: err.message });
+      await new Promise((r) => setTimeout(r, 3000));
+      await db.migrate();
+    }
   }
 
   // Run engine: download + parse
